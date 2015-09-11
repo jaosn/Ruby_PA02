@@ -5,24 +5,30 @@
 # Homework for PA-movies Part 1
 
 class MovieData
-	attr_accessor :data_of_movies
+	attr_accessor :data_of_movies, :test_data
 	def initialize
 		@data_of_movies = []
-		load_data
+		@test_data_movies = []
+		load_train(load_data("ml-100k/u1.base"))
+		load_test(load_data("ml-100k/u1.test"))
 	end
 
-	def access_data
+	def access_train
 		@data_of_movies
 	end
 
+	def access_test
+		@test_data_movies
+	end
+
 	# load the data
-	def load_data
+	def load_data(name)
 		# read the data from the file
-		movie_data = open("ml-100k/u.data","r")
+		movie_data = open(name,"r")
 
 		# separate the data into 4 lists, each line was separated by the tab
 		n = 0
-		user_id_list, movie_id_list, rating_list, time_stamp_list = [], [], [], [] ### code smell
+		data_lst, user_id_list, movie_id_list, rating_list, time_stamp_list = [], [], [], [], [] ### code smell
 
 		movie_data.each do |single_one|
 			data = single_one.split("\t")
@@ -32,12 +38,26 @@ class MovieData
 			time_stamp_list[n] = data[3].to_i
 			n += 1
 		end
+		data_lst[0] = user_id_list
+		data_lst[1] = movie_id_list
+		data_lst[2] = rating_list
+		data_lst[3] = time_stamp_list
+		return data_lst
+	end
 
-		# assign the instance variable @data_of_movies with all the data
-		@data_of_movies[0] = user_id_list
-		@data_of_movies[1] = movie_id_list
-		@data_of_movies[2] = rating_list
-		@data_of_movies[3] = time_stamp_list
+	# assign the instance variable @data_of_movies with all the data
+	def load_train(lst)
+		@data_of_movies[0] = lst[0]
+		@data_of_movies[1] = lst[1]
+		@data_of_movies[2] = lst[2]
+		@data_of_movies[3] = lst[3]
+	end
+
+	def load_test(lst)
+		@test_data_movies[0] = lst[0]
+		@test_data_movies[1] = lst[1]
+		@test_data_movies[2] = lst[2]
+		@test_data_movies[3] = lst[3]
 	end
 
 	# popularity is simply the number of people watched the movie
@@ -75,6 +95,23 @@ class MovieData
 
 	# check the similarity of the two users
 	def similarity(user1,user2)
+		user1_lst, user2_lst = similarity_helper(user1, user2)
+		# store the common movies watched by these two users
+		n = 0
+		user1_lst.each do |user1_elem|
+			user2_lst.each do |user2_elem|
+				if user1_elem == user2_elem
+					n += 1
+				end
+			end
+		end
+		# similarity is calculated by the number of the same movies they watched divided by
+		#	all the movies they two have watched, so it should be within [0,1]
+		similarity = n.fdiv(user1_lst.length + user2_lst.length - n)
+		return similarity
+	end
+
+	def similarity_helper(user1, user2)
 		user1_lst, user2_lst = [], []
 		user_id_lst = @data_of_movies[0]
 		movie_id_lst = @data_of_movies[1]
@@ -88,24 +125,9 @@ class MovieData
 				user2_lst.push(movie_id_lst[index])
 			end
 		end
-
-		# store the common movies watched by these two users
-		n = 0
-		user1_lst.each do |user1_elem|
-			user2_lst.each do |user2_elem|
-				if user1_elem == user2_elem
-					n += 1
-				end
-			end
-		end
-
-		# similarity is calculated by the number of the same movies they watched divided by
-		#	all the movies they two have watched, so it should be within [0,1]
-
-		similarity = n.fdiv(user1_lst.length + user2_lst.length - n)
-
-		return similarity
+		return user1_lst, user2_lst
 	end
+
 
 	# check similarity of a given u and return a list of top 10
 	def most_similar(u)
@@ -152,77 +174,75 @@ class MovieData
 		movie_lst = []
 
 		@data_of_movies[0].each_with_index do |item, index| # user_id list
-			if item = user
+			if item == user
 				user_lst.push(index)
 			end
 		end
 
 		@data_of_movies[1].each_with_index do |item, index| # movie_id list
-			if item = movie
+			if item == movie
 				movie_lst.push(index)
 			end
 		end
 
 		index_rating = user_lst & movie_lst
-		return @data_of_movies[2][0]
+		return @data_of_movies[2][index_rating[0]]
 	end
 
 	# this predict is calcualted by the average of the viewer's rating and
 	# 		the movie's average rating
 	def predict(user, movie)
-		r_l = rating_count(user)
-		averg = movie_rating_average(movie)
-		predict_r = 0
-		random_val = Random.new
-		case rand(@data_of_movies[2].length) + 1
-		when 1..r_l[0] then predict_r = 1
-		when r_l[0]..r_l[0]+r_l[1] then predict_r = 2
-		when r_l[0]+r_l[1]..r_l[0]+r_l[1]+r_l[2] then predict_r = 3
-		when r_l[0]+r_l[1]+r_l[2]..@data_of_movies[2].length-r_l[3] then predict_r = 4
-		when @data_of_movies[2].length-r_l[3]..10000 then predict_r = 5
+		r_l_user = rating_count(user, @data_of_movies[0])
+		r_l_movie = rating_count(movie, @data_of_movies[1])
+		return (predict_helper(r_l_movie)+predict_helper(r_l_user))/2.0
+	end
+
+	def predict_helper(lst)
+		num, prediction = 0, 0
+		lst.each {|itm| num+= itm}
+		rand_num = Random.new
+		case rand_num.rand(num)
+		when 0..lst[0] then prediction = 0
+		when lst[0]..lst[0]+lst[1] then prediction = 1
+		when lst[0]+lst[1]..lst[0]+lst[1]+lst[2] then prediction = 2
+		when lst[0]+lst[1]+lst[2]..lst[0]+lst[1]+lst[2]+lst[3] then prediction = 3
+		when lst[0]+lst[1]+lst[2]+lst[3]..num-lst[-1] then prediction = 4
+		else
+			prediction = 5
 		end
-		#p predict_r
-		return (predict_r.to_f + averg)/2
+		return prediction
 	end
 
 	# reads the user_id and return a list of the movies that he/she watched
 	def movies(user)
-		movie_watched = []
-		@data_of_movies[0].each_with_index do |item, index| # user_id list
-			if item = user
-				movie_watched.push(@data_of_movies[1][index])
-			end
-		end
-		return movie_watched
+		return movie_viewer_helper(user,@data_of_movies[0],@data_of_movies[1])
 	end
 
 	# reads the movie_id and return a list of viewers who watched it
 	def viewers(movie)
-		user_lst = []
-		@data_of_movies[1].each_with_index do |item, index| # movie_id list
-			if item = movie
-				user_lst.push(@data_of_movies[0][index])
+		return movie_viewer_helper(movie, @data_of_movies[1],@data_of_movies[0])
+	end
+	def movie_viewer_helper(name,lst1, lst2)
+		return_lst = []
+		lst1.each_with_index do |item, index|
+			if item == name
+				return_lst.push(lst2[index])
 			end
 		end
-		return user_lst
+		return return_lst
 	end
 
-
-	########### Modification ############
-	# return as tuple: user, movie, rating, and the predicted rating
-	#####################################
-
-
-	# simply get the first k predictions and return them as a list
+	# get the first k of user from test file and return as a tuple cotainning:
+	# 		user_id, movie_id, rating, prediction
 	def run_test(k)
 		tuple_lst, first_k = [], []
-		tuple_lst[0] = @data_of_movies[0][0..k-1]
-		tuple_lst[1] = @data_of_movies[1][0..k-1]
-		tuple_lst[2] = @data_of_movies[2][0..k-1]
-		
+		tuple_lst[0] = @test_data_movies[0][0..k-1]
+		tuple_lst[1] = @test_data_movies[1][0..k-1]
+		tuple_lst[2] = @test_data_movies[2][0..k-1]
+
 		num = 0
 		while num < k do
-			first_k.push(predict(@data_of_movies[0][num],@data_of_movies[1][num]))
+			first_k.push(predict(@test_data_movies[0][num],@test_data_movies[1][num]))
 			num += 1
 		end
 		tuple_lst[3] = first_k
@@ -231,24 +251,26 @@ class MovieData
 
 	# This method was designed to help analyze the distribution of all the
 	# 		rating of a certain user
-	def rating_count(user)
-		rating_lst = [0,0,0,0,0]
-
+	def rating_count(user,user_lst)
+		rating_lst = [0,0,0,0,0,0]
 		# find the distribution of the ratings of a certain user
-		@data_of_movies[0].each_with_index do |item, index|
-			if item = index
+
+		user_lst.each_with_index do |item, index|
+			if item == user
 				rating = @data_of_movies[2][index]
 				case rating
 				when 1
-					rating_lst[0]+= 1
-				when 2
 					rating_lst[1]+= 1
-				when 3
+				when 2
 					rating_lst[2]+= 1
-				when 4
+				when 3
 					rating_lst[3]+= 1
-				else
+				when 4
 					rating_lst[4]+= 1
+				when 5
+					rating_lst[5]+= 1
+				else
+					rating_lst[0]+= 1
 				end
 			end
 		end
@@ -305,17 +327,21 @@ class MovieTest
 
 	# calculate the root mean square error of the prediction
 	def cal_rms
-		sum = 0
-		@test_sample[3].each do |item|
-			sum += item
-		end
-		mean = sum.to_f / @fix_k
+		mean = cal_rms_helper
 
 		sum_sec = 0
 		@test_sample[3].each do |item|
 			sum_sec += (item - mean)*(item - mean)
 		end
 		return Math.sqrt(sum_sec / @fix_k)
+	end
+
+	def cal_rms_helper
+		sum = 0
+		@test_sample[3].each do |item|
+			sum += item
+		end
+		return sum.to_f / @fix_k
 	end
 
 	def to_a
@@ -327,9 +353,9 @@ end
 ########### just ignore the following part, for self-check only ############
 
 # check the popularity method
-#movies_data = MovieData.new
-#p movies_data.access_data[0][0]
-
+movies_data = MovieData.new
+#p movies_data.access_train[0].length
+#p movies_data.access_test[1].length
 #popularity = movies_data.popularity(12)
 #puts "Here is the popularity of movie 12: #{popularity}"
 
@@ -363,12 +389,12 @@ end
 ###### end ########
 
 # check the run_test(k) method
+#ta = Time.now
 #first_k = movies_data.run_test(5)
-#p first_k
+#tb = Time.now
+#p first_k.inspect
+#p tb - ta
 
-# check the rating_count(user) method
-#rating_lst = movies_data.rating_count(12)
-#p rating_lst
 
 #check the movie_rating_average(movie) method
 #aver = movies_data.movie_rating_average(203)
@@ -377,7 +403,7 @@ end
 
 ################
 # check the MovieTest class
-test_data = MovieTest.new(5)
+test_data = MovieTest.new(10)
 
 # check the cal_mean_error
 #mean = test_data.cal_mean_error
@@ -392,5 +418,5 @@ test_data = MovieTest.new(5)
 #p rms
 
 # check to_s method
-tup = test_data.to_a
-p tup
+#tup = test_data.to_a
+#p tup
