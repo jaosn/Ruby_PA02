@@ -26,7 +26,7 @@ class MovieData
 
 		# separate the data into 4 lists, each line was separated by the tab
 		n = 0
-		data_lst, user_id_list, movie_id_list, rating_list, time_stamp_list = [], [], [], [], [] ### code smell
+		user_id_list, movie_id_list, rating_list, time_stamp_list = [], [], [], []### code smell
 
 		movie_data.each do |single_one|
 			data = single_one.split("\t")
@@ -36,11 +36,16 @@ class MovieData
 			time_stamp_list[n] = data[3].to_i
 			n += 1
 		end
-		data_lst[0] = user_id_list
-		data_lst[1] = movie_id_list
-		data_lst[2] = rating_list
-		data_lst[3] = time_stamp_list
-		return data_lst
+		return assign_val(user_id_list,movie_id_list,rating_list,time_stamp_list)
+	end
+
+	def assign_val(lst1,lst2,lst3,lst4)
+		lst = []
+		lst[0] = lst1
+		lst[1] = lst2
+		lst[2] = lst3
+		lst[3] = lst4
+		return lst
 	end
 
 
@@ -237,11 +242,8 @@ class MovieData
 	# get the first k of user from test file and return as a tuple cotainning:
 	# 		user_id, movie_id, rating, prediction
 	def run_test(k)
-		tuple_lst, first_k = [], []
-		tuple_lst[0] = @test_data_movies[0][0..k-1]
-		tuple_lst[1] = @test_data_movies[1][0..k-1]
-		tuple_lst[2] = @test_data_movies[2][0..k-1]
-
+		first_k = []
+		tuple_lst = tuple_helper(k)
 		num = 0
 		while num < k do
 			first_k.push(predict(@test_data_movies[0][num],@test_data_movies[1][num]))
@@ -249,6 +251,14 @@ class MovieData
 		end
 		tuple_lst[3] = first_k
 		return tuple_lst
+	end
+
+	def tuple_helper(k)
+		lst = []
+		lst[0] = @test_data_movies[0][0..k-1]
+		lst[1] = @test_data_movies[1][0..k-1]
+		lst[2] = @test_data_movies[2][0..k-1]
+		return lst
 	end
 
 	# This method was designed to help analyze the distribution of all the
@@ -355,9 +365,10 @@ end
 ########### just ignore the following part, for self-check only ############
 
 # check the popularity method
-#movies_data = MovieData.new
-#p movies_data.access_train[0].length
-#p movies_data.access_test[1].length
+movies_data = MovieData.new
+
+p movies_data.access_train[0].length
+p movies_data.access_test[1].length
 #popularity = movies_data.popularity(12)
 #puts "Here is the popularity of movie 12: #{popularity}"
 
