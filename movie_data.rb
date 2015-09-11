@@ -7,10 +7,8 @@
 class MovieData
 	attr_accessor :data_of_movies, :test_data
 	def initialize
-		@data_of_movies = []
-		@test_data_movies = []
-		load_train(load_data("ml-100k/u1.base"))
-		load_test(load_data("ml-100k/u1.test"))
+		@data_of_movies = load_data("ml-100k/u1.base")
+		@test_data_movies = load_data("ml-100k/u1.test")
 	end
 
 	def access_train
@@ -45,20 +43,6 @@ class MovieData
 		return data_lst
 	end
 
-	# assign the instance variable @data_of_movies with all the data
-	def load_train(lst)
-		@data_of_movies[0] = lst[0]
-		@data_of_movies[1] = lst[1]
-		@data_of_movies[2] = lst[2]
-		@data_of_movies[3] = lst[3]
-	end
-
-	def load_test(lst)
-		@test_data_movies[0] = lst[0]
-		@test_data_movies[1] = lst[1]
-		@test_data_movies[2] = lst[2]
-		@test_data_movies[3] = lst[3]
-	end
 
 	# popularity is simply the number of people watched the movie
 	def popularity(movie_id)
@@ -197,16 +181,34 @@ class MovieData
 		return (predict_helper(r_l_movie)+predict_helper(r_l_user))/2.0
 	end
 
+	# help predict method
 	def predict_helper(lst)
 		num, prediction = 0, 0
 		lst.each {|itm| num+= itm}
+		sum_lst = stepping_sum(lst)
+		return rand_pred(num,sum_lst)
+	end
+
+	# help predict method
+	def stepping_sum(lst)
+	  new_lst = []
+	  sum = 0
+	  lst.each_with_index do |itm, index|
+	    sum += itm
+	    new_lst.push(sum)
+	  end
+	  return new_lst
+	end
+
+	# help predict method
+	def rand_pred(num,sum_lst)
 		rand_num = Random.new
 		case rand_num.rand(num)
-		when 0..lst[0] then prediction = 0
-		when lst[0]..lst[0]+lst[1] then prediction = 1
-		when lst[0]+lst[1]..lst[0]+lst[1]+lst[2] then prediction = 2
-		when lst[0]+lst[1]+lst[2]..lst[0]+lst[1]+lst[2]+lst[3] then prediction = 3
-		when lst[0]+lst[1]+lst[2]+lst[3]..num-lst[-1] then prediction = 4
+		when 0..sum_lst[0] then prediction = 0
+		when sum_lst[0]..sum_lst[1] then prediction = 1
+		when sum_lst[1]..sum_lst[2] then prediction = 2
+		when sum_lst[2]..sum_lst[3] then prediction = 3
+		when sum_lst[3]..sum_lst[4] then prediction = 4
 		else
 			prediction = 5
 		end
@@ -353,7 +355,7 @@ end
 ########### just ignore the following part, for self-check only ############
 
 # check the popularity method
-movies_data = MovieData.new
+#movies_data = MovieData.new
 #p movies_data.access_train[0].length
 #p movies_data.access_test[1].length
 #popularity = movies_data.popularity(12)
@@ -403,7 +405,7 @@ movies_data = MovieData.new
 
 ################
 # check the MovieTest class
-test_data = MovieTest.new(10)
+#test_data = MovieTest.new(10)
 
 # check the cal_mean_error
 #mean = test_data.cal_mean_error
